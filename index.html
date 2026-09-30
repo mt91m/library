@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>کتابخانه مدرسه</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div id="toast-container"></div>
+
+  <!-- ============ صفحه ورود/ثبت‌نام ============ -->
+  <div id="auth-page" class="page active">
+    <div class="auth-bg"></div>
+    <div class="auth-box">
+      <div class="auth-header">
+        <div class="logo">📚</div>
+        <h1>کتابخانه مدرسه</h1>
+        <p class="subtitle">سیستم مدیریت امانت کتاب</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="login">ورود</button>
+        <button class="tab" data-tab="register">ثبت‌نام</button>
+      </div>
+
+      <form id="login-form" class="form">
+        <div class="field">
+          <label>نام کاربری</label>
+          <input type="text" id="login-username" placeholder="نام کاربری خود را وارد کنید" required />
+        </div>
+        <div class="field">
+          <label>رمز عبور</label>
+          <input type="password" id="login-password" placeholder="رمز عبور" required />
+        </div>
+        <button type="submit" class="btn-primary">ورود به سیستم</button>
+        <p class="msg" id="login-msg"></p>
+      </form>
+
+      <form id="register-form" class="form hidden">
+        <div class="field">
+          <label>نام و نام خانوادگی</label>
+          <input type="text" id="reg-fullname" placeholder="مثلاً علی احمدی" required />
+        </div>
+        <div class="field">
+          <label>کلاس</label>
+          <input type="text" id="reg-class" placeholder="مثلاً ۱۰۱" required />
+        </div>
+        <div class="field">
+          <label>نام کاربری</label>
+          <input type="text" id="reg-username" placeholder="فقط حروف انگلیسی و عدد" required />
+        </div>
+        <div class="field">
+          <label>رمز عبور</label>
+          <input type="password" id="reg-password" placeholder="حداقل ۶ کاراکتر" required />
+        </div>
+        <button type="submit" class="btn-primary">ساخت حساب</button>
+        <p class="msg" id="reg-msg"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ داشبورد ============ -->
+  <div id="app-page" class="page">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo-sm">📚</span>
+        <h2>کتابخانه مدرسه</h2>
+      </div>
+      <div class="user-info">
+        <div class="avatar" id="user-avatar">؟</div>
+        <div class="user-details">
+          <strong id="user-name"></strong>
+          <small id="user-role"></small>
+        </div>
+        <button id="logout-btn" class="btn-ghost">خروج</button>
+      </div>
+    </header>
+
+    <nav class="nav">
+      <button class="nav-btn active" data-view="books">📖 کتاب‌ها</button>
+      <button class="nav-btn" data-view="my-loans">📋 درخواست‌های من</button>
+      <button class="nav-btn admin-only hidden" data-view="admin-books">📚 مدیریت کتاب‌ها</button>
+      <button class="nav-btn admin-only hidden" data-view="admin-periods">🗓 مدیریت بازه‌ها</button>
+      <button class="nav-btn admin-only hidden" data-view="admin-loans">📨 درخواست‌ها <span class="nav-badge hidden" id="overdue-badge">0</span></button>
+      <button class="nav-btn admin-only hidden" data-view="admin-manual">✍️ امانت دستی</button>
+      <button class="nav-btn admin-only hidden" data-view="admin-reports">📊 گزارش‌ها</button>
+    </nav>
+
+    <main class="content">
+
+      <section id="view-books" class="view active">
+        <div class="view-header">
+          <h3>لیست کتاب‌ها</h3>
+          <span class="count-badge" id="books-count">۰</span>
+        </div>
+
+        <div class="filters">
+          <input type="text" id="search-books" placeholder="🔍 جستجو بر اساس نام کتاب..." class="search" />
+          <select id="filter-genre">
+            <option value="">همه دسته‌ها</option>
+          </select>
+          <select id="filter-stock">
+            <option value="">همه</option>
+            <option value="available">فقط موجود</option>
+          </select>
+          <select id="sort-books">
+            <option value="title">مرتب‌سازی: نام</option>
+            <option value="available">بیشترین موجودی</option>
+          </select>
+        </div>
+
+        <div id="books-list" class="grid"></div>
+      </section>
+
+      <section id="view-my-loans" class="view">
+        <div class="view-header">
+          <h3>درخواست‌های من</h3>
+        </div>
+        <div id="my-loans-list" class="list"></div>
+      </section>
+
+      <section id="view-admin-books" class="view">
+        <div class="view-header">
+          <h3>مدیریت کتاب‌ها</h3>
+        </div>
+        <form id="add-book-form" class="inline-form">
+          <input type="text" id="book-title" placeholder="نام کتاب" required />
+          <input type="text" id="book-genre" placeholder="نوع/ژانر" required />
+          <input type="number" id="book-copies" placeholder="تعداد" min="1" required />
+          <button type="submit" class="btn-primary">+ افزودن</button>
+        </form>
+        <div id="admin-books-list" class="list"></div>
+      </section>
+
+      <section id="view-admin-periods" class="view">
+        <div class="view-header">
+          <h3>مدیریت بازه‌های زمانی</h3>
+          <p class="hint">تاریخ شروع (شمسی) و تعداد روز را وارد کنید</p>
+        </div>
+
+        <form id="add-period-form" class="period-form">
+          <div class="field">
+            <label>برچسب</label>
+            <input type="text" id="period-label" placeholder="مثلاً هفته اول" required />
+          </div>
+
+          <div class="field">
+            <label>تاریخ شروع (شمسی)</label>
+            <div class="jalali-input">
+              <input type="number" id="start-day" placeholder="روز" min="1" max="31" required />
+              <select id="start-month" required>
+                <option value="">ماه</option>
+                <option value="1">فروردین</option>
+                <option value="2">اردیبهشت</option>
+                <option value="3">خرداد</option>
+                <option value="4">تیر</option>
+                <option value="5">مرداد</option>
+                <option value="6">شهریور</option>
+                <option value="7">مهر</option>
+                <option value="8">آبان</option>
+                <option value="9">آذر</option>
+                <option value="10">دی</option>
+                <option value="11">بهمن</option>
+                <option value="12">اسفند</option>
+              </select>
+              <input type="number" id="start-year" placeholder="سال" min="1400" max="1450" required />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>مدت (روز)</label>
+            <input type="number" id="period-days" placeholder="مثلاً ۷" min="1" max="365" value="7" required />
+          </div>
+
+          <button type="submit" class="btn-primary">+ افزودن بازه</button>
+        </form>
+
+        <div id="admin-periods-list" class="list"></div>
+      </section>
+
+      <section id="view-admin-loans" class="view">
+        <div class="view-header">
+          <h3>درخواست‌های کاربران</h3>
+          <span class="count-badge" id="admin-loans-count">۰</span>
+          <p class="hint">فقط درخواست‌های در جریان (در انتظار و تأییدشده)</p>
+        </div>
+        <div id="admin-loans-list" class="list"></div>
+      </section>
+
+      <section id="view-admin-manual" class="view">
+        <div class="view-header">
+          <h3>ثبت امانت دستی</h3>
+          <p class="hint">برای دانش‌آموزانی که در سیستم ثبت‌نام نکرده‌اند</p>
+        </div>
+        <form id="manual-loan-form" class="manual-form">
+          <div class="field">
+            <label>نام و نام خانوادگی گیرنده</label>
+            <input type="text" id="manual-name" placeholder="مثلاً رضا کریمی" required />
+          </div>
+          <div class="field">
+            <label>کلاس</label>
+            <input type="text" id="manual-class" placeholder="مثلاً ۲۰۲" required />
+          </div>
+          <div class="field">
+            <label>کتاب</label>
+            <select id="manual-book" required></select>
+          </div>
+          <div class="field">
+            <label>بازه زمانی</label>
+            <select id="manual-period" required></select>
+          </div>
+          <button type="submit" class="btn-primary">ثبت امانت</button>
+        </form>
+      </section>
+
+      <section id="view-admin-reports" class="view">
+        <div class="view-header">
+          <h3>گزارش‌ها</h3>
+        </div>
+
+        <div class="report-tabs">
+          <button class="report-tab" data-report="overdue">⏰ تأخیرها</button>
+          <button class="report-tab active" data-report="active">📕 در امانت</button>
+          <button class="report-tab" data-report="history">📜 تاریخچه</button>
+          <button class="report-tab" data-report="by-book">📚 بر اساس کتاب</button>
+        </div>
+
+        <div class="filters" id="report-filters">
+          <input type="text" id="report-search" placeholder="🔍 جستجو..." class="search" />
+          <select id="report-status">
+            <option value="">همه وضعیت‌ها</option>
+            <option value="pending">در انتظار</option>
+            <option value="approved">تأییدشده</option>
+            <option value="rejected">ردشده</option>
+            <option value="returned">بازگشته</option>
+          </select>
+        </div>
+
+        <div id="reports-list" class="list"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-title">انتخاب بازه</h3>
+        <button id="modal-close" class="btn-close">×</button>
+      </div>
+      <div id="modal-periods" class="list"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
